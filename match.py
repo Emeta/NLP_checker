@@ -15,6 +15,10 @@ class ticket:
         self.task = ''          # 操作任务
         self.step_number = 0    # 操作顺序
         self.step = ''          # 操作步骤
+    def add_newticket(self,Task,Step_number,Step):
+        self.task = Task        
+        self.step_number = Step_number 
+        self.step = Step
 
 def stringMacth(S:string,T:string):
 
@@ -129,12 +133,9 @@ if __name__ == '__main__':
         checking_ticket = ticket()
 
         sent = sent.replace(' ','')
-
-        checking_ticket.step_number = i
-        checking_ticket.step = sent
+        checking_ticket.add_newticket('将220kV1M母线由冷备用转运行，220kV 1M母线、2M母线方式倒为正常并列运行方式',i,sent)
         checking_tickets.append(checking_ticket)
 
-    checking_ticket.task = '将220kV 1M母线由冷备用转运行，220kV 1M母线、2M母线方式倒为正常并列运行方式'
     # 去空格
     checking_ticket.task = checking_ticket.task.replace(' ','')
 
