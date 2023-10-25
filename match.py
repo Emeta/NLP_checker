@@ -19,6 +19,9 @@ class ticket:
         self.task = Task        
         self.step_number = Step_number 
         self.step = Step
+    def add_newtickets(self,Task,Step_number_list,Step_list):
+        for i in range(len(Step_number_list)):
+            self.add_newticket(Task,Step_number_list[i],Step_list[i])
 
 def stringMacth(S:string,T:string):
 
@@ -54,7 +57,7 @@ def DeviceMacth(checking_tickets):
     #读取设备库文件
     filename = 'device.txt'
     data = []
-
+    check_info = []
     with open(filename, 'rb') as f:
         result = chardet.detect(f.read())
         encoding = result['encoding']
@@ -75,19 +78,22 @@ def DeviceMacth(checking_tickets):
                     
             if tag == 0:
                 #接口：返回错误信息
-                print("设备检查错误，在操作步骤{}中，母线设备名错误".format(set.step_number))
+                check_info.append("设备检查错误，在操作步骤{}中，母线设备名错误".format(set.step_number))
                     
-    return
+    return check_info
 
 def NLP_check(checking_tickets):
+    check_info = []
     for line in checking_tickets:
         correct_sent, err = pycorrector.correct(line.step)
     # 接口：返回错误信息
         if len(err) != 0:
-            print("NLP模型检查错误,在操作步骤{}中，{} => {} {}".format(line.step_number,line.step, correct_sent, err))
+            check_info.append("NLP模型检查错误,在操作步骤{}中，{} => {} {}".format(line.step_number,line.step, correct_sent, err))
+    return check_info
 
 # 规则匹配
 def RuleMacth(checking_tickets):
+    check_info = []
     filename = 'rule.txt'
     data = {}
 
@@ -106,11 +112,28 @@ def RuleMacth(checking_tickets):
             if stringMacth(set.step,key) is not None:
                 if stringMacth(set.step,val) is None:
                     #接口：返回错误信息
-                    print("规则检查错误，在操作步骤{}中，出现\"{}\"时缺少\"{}\"".format(set.step_number,key,val))
+                    check_info.append("规则检查错误，在操作步骤{}中，出现\"{}\"时缺少\"{}\"".format(set.step_number,key,val))
                     break
     
-    return
+    return check_info
 
+def check_newtickets(Task:string,Step_number_list:list,Step_list:list) ->list:
+    checking_tickets = []
+    check_info = []
+
+    Task = Task.replace(' ','')
+
+    for i in range(len(Step_number_list)):
+        checking_ticket = ticket()
+        Step_list[i] = Step_list[i].replace(' ','')
+        checking_ticket.add_newticket(Task,Step_number_list[i],Step_list[i])
+        checking_tickets.append(checking_ticket)
+
+    check_info += DeviceMacth(checking_tickets)
+    check_info += NLP_check(checking_tickets)
+    check_info += RuleMacth(checking_tickets)
+
+    return check_info
 if __name__ == '__main__':
     
     # 操作票接口处
@@ -125,20 +148,4 @@ if __name__ == '__main__':
         '检查220kV #1电压互感器1M母线侧221PT刀闸三相确在合上位置', 
     ]
 
-    checking_tickets = []
-    i = 0
-
-    for sent in error_sentences:
-        i += 1
-        checking_ticket = ticket()
-
-        sent = sent.replace(' ','')
-        checking_ticket.add_newticket('将220kV1M母线由冷备用转运行，220kV 1M母线、2M母线方式倒为正常并列运行方式',i,sent)
-        checking_tickets.append(checking_ticket)
-
-    # 去空格
-    checking_ticket.task = checking_ticket.task.replace(' ','')
-
-    DeviceMacth(checking_tickets)
-    NLP_check(checking_tickets)
-    RuleMacth(checking_tickets)
+    print(check_newtickets('Task',[1,2,3,4,5,6,7],error_sentences))
