@@ -1,7 +1,8 @@
 import string
 import chardet
 from typing import *
-import pycorrector
+from pycorrector.macbert.macbert_corrector import MacBertCorrector
+from pycorrector import ConfusionCorrector
 import sys
 
 from flask import Flask
@@ -78,17 +79,24 @@ def DeviceMacth(checking_tickets):
                     
             if tag == 0:
                 #接口：返回错误信息
-                check_info.append("设备检查错误，在操作步骤{}中，母线设备名错误".format(set.step_number))
+                check_info.append("设备检查错误，在操作顺序{}中，母线设备名错误".format(set.step_number))
                     
     return check_info
 
 def NLP_check(checking_tickets):
     check_info = []
+    m = MacBertCorrector()
+    confusion_dict = {"喝小明同学": "喝小茗同学", "老人让坐": "老人让座", "平净": "平静", "却在": "确在"}
+    cm = ConfusionCorrector(custom_confusion_path_or_dict=confusion_dict)
     for line in checking_tickets:
-        correct_sent, err = pycorrector.correct(line.step)
+        correct_sent, err = m.macbert_correct(line.step)
+        if err :
+            check_info.append("NLP模型检查错误,在操作顺序{}中，{} => {} {}".format(line.step_number,line.step, correct_sent, err))
+        correct_sent, err = cm.confusion_correct(correct_sent)
+        if err :
+            check_info.append("NLP模型投喂库检查错误,在操作顺序{}中，{} => {} {}".format(line.step_number,line.step, correct_sent, err))
     # 接口：返回错误信息
-        if len(err) != 0:
-            check_info.append("NLP模型检查错误,在操作步骤{}中，{} => {} {}".format(line.step_number,line.step, correct_sent, err))
+
     return check_info
 
 # 规则匹配
@@ -112,7 +120,7 @@ def RuleMacth(checking_tickets):
             if stringMacth(set.step,key) is not None:
                 if stringMacth(set.step,val) is None:
                     #接口：返回错误信息
-                    check_info.append("规则检查错误，在操作步骤{}中，出现\"{}\"时缺少\"{}\"".format(set.step_number,key,val))
+                    check_info.append("规则检查错误，在操作顺序{}中，出现\"{}\"时缺少\"{}\"".format(set.step_number,key,val))
                     break
     
     return check_info
@@ -129,9 +137,9 @@ def check_newtickets(Task:string,Step_number_list:list,Step_list:list) ->list:
         checking_ticket.add_newticket(Task,Step_number_list[i],Step_list[i])
         checking_tickets.append(checking_ticket)
 
-    check_info += DeviceMacth(checking_tickets)
+    #check_info += DeviceMacth(checking_tickets)
     check_info += NLP_check(checking_tickets)
-    check_info += RuleMacth(checking_tickets)
+    #check_info += RuleMacth(checking_tickets)
 
     return check_info
 if __name__ == '__main__':
@@ -139,13 +147,13 @@ if __name__ == '__main__':
     # 操作票接口处
     # 例：
     error_sentences = [
-        '核对相关设备的运运行方式',
-        '在后台监控机检查500kV#2M母线电压显示正常',
+        '老是较书',
+        '在后台监控机检查500kV#2M母线电压因该显示正长',
         '在后台监控机检查500kV#1M母线电压显示为零',
-        '在在220kV母差保护屏Ⅱ（55P）将1QK Ⅰ母 Ⅱ母切换开关切换至“双母”位置',
+        '在在220kV母差保护屏Ⅱ（55P）将1QK Ⅰ母 Ⅱ母切换开关切换至“双母”位制',
         '在220kV #1电压互感器221PT端子箱合上交流电机电源1DK空气开关',
-        '合上220kV #1电压互感器1M母线侧221PT刀闸',
-        '检查220kV #1电压互感器1M母线侧221PT刀闸三相确在合上位置', 
+        '合商220kV #1电压互感器1M母线侧221PT刀闸',
+        '检插220kV #1电压互感器1M母线侧221PT刀闸三相却在合上位置', 
     ]
 
     print(check_newtickets('Task',[1,2,3,4,5,6,7],error_sentences))
