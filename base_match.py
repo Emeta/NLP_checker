@@ -155,8 +155,8 @@ def check_newtickets(Task:string,Step_number_list:list,Step_list:list) ->list:
         checking_ticket.add_newticket(Task,Step_number_list[i],Step_list[i])
         checking_tickets.append(checking_ticket)
 
-    #check_info += DeviceMacth(checking_tickets)
-    #check_info += NLP_check(checking_tickets)
+    check_info += DeviceMacth(checking_tickets)
+    check_info += NLP_check(checking_tickets)
     check_info += RuleMacth(checking_tickets)
 
     return check_info
