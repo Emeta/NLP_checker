@@ -14,7 +14,6 @@ ATTR = {"step":"操作步骤",
         "unit":"发令单位",
         "place":"地点名称"}
 
-err_cor = {}
 # 操作票数据结构
 # 只需要操作任务，操作步骤，操作顺序三项
 class ticket:
@@ -124,6 +123,7 @@ def DeviceMacth(checking_tickets):
 
 def NLP_check(checking_tickets):
     check_info = []
+    err_cor = []
     pycorrector.set_custom_confusion_path_or_dict('./my_custom_confusion.txt')
     correct_sent, err =  pycorrector.correct(checking_tickets[0].task)
     if err :
@@ -132,10 +132,10 @@ def NLP_check(checking_tickets):
         correct_sent, err =  pycorrector.correct(line.step)
         if err :
             check_info.append("NLP模型检查错误,在操作顺序{}中，{} => {} {}".format(line.step_number,line.step, correct_sent, err))
-            err_cor[str(line.step_number)] = [err[0][0],err[0][1]]
+            err_cor.append([err[0][0],err[0][1]])
     # 接口：返回错误信息
 
-    return check_info
+    return check_info,err_cor
 
 # 规则匹配
 def RuleMacth(checking_tickets):
@@ -184,9 +184,10 @@ def check_newtickets(Task:string,Step_number_list:list,Step_list:list,Place:stri
         checking_ticket.add_newticket(Task,Step_number_list[i],Step_list[i],Place,Unit)
         checking_tickets.append(checking_ticket)
 
-    #check_info += DeviceMacth(checking_tickets)
-    check_info += NLP_check(checking_tickets)
-    #check_info += RuleMacth(checking_tickets)
+    check_info += DeviceMacth(checking_tickets)
+    info,err_cor = NLP_check(checking_tickets)
+    check_info += info
+    check_info += RuleMacth(checking_tickets)
 
     return check_info,err_cor
 
