@@ -9,6 +9,11 @@ from flask import Flask
 
 sys.path.append("..")
 
+ATTR = {"step":"操作步骤",
+        "task":"操作任务",
+        "unit":"发令单位",
+        "place":"地点名称"}
+
 # 操作票数据结构
 # 只需要操作任务，操作步骤，操作顺序三项
 class ticket:
@@ -16,13 +21,43 @@ class ticket:
         self.task = ''          # 操作任务
         self.step_number = 0    # 操作顺序
         self.step = ''          # 操作步骤
-    def add_newticket(self,Task,Step_number,Step):
+        self.place = ''         # 地点名称
+        self.unit = ''          # 发令单位
+    def add_newticket(self,Task,Step_number,Step,Place,Unit):
         self.task = Task        
         self.step_number = Step_number 
         self.step = Step
-    def add_newtickets(self,Task,Step_number_list,Step_list):
+        self.place = Place
+        self.unit = Unit
+    def add_newtickets(self,Task,Step_number_list,Step_list,Place,Unit):
         for i in range(len(Step_number_list)):
-            self.add_newticket(Task,Step_number_list[i],Step_list[i])
+            self.add_newticket(Task,Step_number_list[i],Step_list[i],Place,Unit)
+
+class ticketrule:
+    def __init__(self):
+        self.en = ''
+        self.co = ''
+        self.key = ''
+        self.val = []
+    def add_newrule(self,en,co,key,val):
+        if en == '操作任务':
+            self.en = 'task'
+        elif en == '操作步骤':
+            self.en = 'step'       
+        elif en == '地点名称':
+            self.en = 'place' 
+        elif en == '发令单位':
+            self.en = 'unit'
+        if co == '操作任务':
+            self.co = 'task'
+        elif co == '操作步骤':
+            self.co = 'step'       
+        elif co == '地点名称':
+            self.en = 'place' 
+        elif co == '发令单位':
+            self.co = 'unit'       
+        self.key = key
+        self.val = val
 
 def stringMacth(S:string,T:string):
 
@@ -105,45 +140,38 @@ def NLP_check(checking_tickets):
 def RuleMacth(checking_tickets):
     check_info = []
     filename = 'rule.txt'
-    data = {}
 
     with open(filename, 'rb') as f:
         result = chardet.detect(f.read())
         encoding = result['encoding']
 
     with open(filename,'r', encoding=encoding) as f:
+        res = None
+        rules = []
         for line in f:
-            (key, val) = line.split()
+            newrule = ticketrule()
+            en, co, key, val = line.split()
             val_list = list(val.split(","))
-            data[key] = val_list
+            newrule.add_newrule(en, co, key, val_list)
+            rules.append(newrule)
 
     #字符串匹配
-    for key, val_list in data.items():
-        if stringMacth(checking_tickets[0].task,key) is not None:
-            tag = 0
-            for val in val_list:  
-                if stringMacth(checking_tickets[0].task,val) is not None:
-                    tag = 1
-                    break
-            if tag == 0:        
-                check_info.append("规则检查错误，在操作任务中，出现‘{}’时缺少{}".format(key,val_list))
-
-    for set in checking_tickets:
-        for key, val_list in data.items():
-            if stringMacth(set.step,key) is not None:
+    for sen in checking_tickets:
+        for rule in rules:
+            res = eval('stringMacth(sen.{},rule.key)'.format(rule.en))
+            if res is not None:
                 tag = 0
-                for val in val_list:  
-                    if stringMacth(set.step,val) is not None:
+                for val in rule.val:  
+                    res = eval('stringMacth(sen.{},val)'.format(rule.co))
+                    if res is not None:
                         tag = 1
                         break
-                if tag == 0: 
-                    #接口：返回错误信息
-                    check_info.append("规则检查错误，在操作顺序{}中，出现‘{}’时缺少{}".format(set.step_number,key,val_list))
-                    break
-    
+                if tag == 0:        
+                    check_info.append("规则检查错误，在操作顺序{},在{}中出现‘{}’时,{}缺少{}".format(sen.step_number,ATTR[rule.en],rule.key,ATTR[rule.co],rule.val))
+
     return check_info
 
-def check_newtickets(Task:string,Step_number_list:list,Step_list:list) ->list:
+def check_newtickets(Task:string,Step_number_list:list,Step_list:list,Place:string,Unit:string) ->list:
     checking_tickets = []
     check_info = []
 
@@ -152,7 +180,7 @@ def check_newtickets(Task:string,Step_number_list:list,Step_list:list) ->list:
     for i in range(len(Step_number_list)):
         checking_ticket = ticket()
         Step_list[i] = Step_list[i].replace(' ','')
-        checking_ticket.add_newticket(Task,Step_number_list[i],Step_list[i])
+        checking_ticket.add_newticket(Task,Step_number_list[i],Step_list[i],Place,Unit)
         checking_tickets.append(checking_ticket)
 
     check_info += DeviceMacth(checking_tickets)
@@ -162,7 +190,7 @@ def check_newtickets(Task:string,Step_number_list:list,Step_list:list) ->list:
     return check_info
 
 # 应用功能：NLP模型规则更新
-def add_new_confusion(err:string,cor:string):
+def add_new_confusion(err:string,cor:string) ->string: 
     filename = 'my_custom_confusion.txt'
     
     with open(filename, 'rb') as f:
@@ -180,18 +208,58 @@ def add_new_confusion(err:string,cor:string):
     
     return "新语义修正添加成功"
 
+# 应用功能：规则更新
+def add_new_rule(en:string,co:string,key:string,val:list) ->string:
+    filename = 'rule.txt'
+    l = ['操作任务','操作步骤','地点名称','发令单位']
+    if en in l and co in l:
+        with open(filename, 'rb') as f:
+            result = chardet.detect(f.read())
+            encoding = result['encoding']
+
+        with open(filename, 'a',encoding=encoding) as f:
+            f.write('\n' + en +' '+ co + ' ' + key+ ' ' + val)
+   
+        return "新规则添加成功"
+    else:
+        return "规则格式错误"
+
+def show_rules() ->list:
+    filename = 'rule.txt'
+
+    with open(filename, 'rb') as f:
+        result = chardet.detect(f.read())
+        encoding = result['encoding']
+
+    with open(filename,'r', encoding=encoding) as f:
+        info = []
+        for line in f:
+            en, co, key, val = line.split()
+            info.append('在{}中，出现{}时，{}中不能出现{}'.format(en,key,co,val))
+        return info
+
+def show_device() ->list:
+    filename = 'device.txt'
+    with open(filename, 'rb') as f:
+        result = chardet.detect(f.read())
+        encoding = result['encoding']
+
+    with open(filename,'r', encoding=encoding) as f:
+        info = []
+        for line in f:
+            line = line.strip("\n")
+            info.append(line)
+        return info
+
 if __name__ == '__main__':
     
     # 操作票接口处
     # 例：
     error_sentences = [
-        '老是较书',
-        '在后台监控机检查500kV#2M母线电压因该显示正长',
-        '在后台监控机检查500kV#1M母线电压显示为零',
-        '在在220kV母差保护屏Ⅱ（55P）将1QK Ⅰ母 Ⅱ母切换开关切换至“双母”位制',
-        '在220kV #1电压互感器221PT端子箱合上交流电机电源1DK空气开关',
-        '合商220kV #1电压互感器1M母线侧221PT刀闸',
-        '检插220kV #1电压互感器1M母线侧221PT刀闸三相却在合上位置', 
+        '在后台监控机检查220kV 2M母线电压显示正常；',
+        '在在220kV母差保护屏Ⅱ（55P）将1QK Ⅰ母 Ⅱ母切换开关切换至“双母”位置；',
+        '在220kV #1电压互感器221PT端子箱合上交流电机电源1DK空气开关；',
+        '测量Ⅰ母保护电压 1ZKK空气开关负荷侧二次电压为零；',
     ]
-    print(add_new_confusion('母差','母差'))
-    print(check_newtickets('将#2开关主变由运行转冷备用',[1,2,3,4,5,6,7],error_sentences))
+    print(show_device())
+    print(check_newtickets('将220kV 1M母线由冷备用转运行，220kV 1M母线、2M母线方式倒为正常开关并列运行方式',[1,2,3,4],error_sentences,'1','自调'))
