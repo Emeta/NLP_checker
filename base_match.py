@@ -14,6 +14,7 @@ ATTR = {"step":"操作步骤",
         "unit":"发令单位",
         "place":"地点名称"}
 
+err_cor = {}
 # 操作票数据结构
 # 只需要操作任务，操作步骤，操作顺序三项
 class ticket:
@@ -131,7 +132,7 @@ def NLP_check(checking_tickets):
         correct_sent, err =  pycorrector.correct(line.step)
         if err :
             check_info.append("NLP模型检查错误,在操作顺序{}中，{} => {} {}".format(line.step_number,line.step, correct_sent, err))
-
+            err_cor[str(line.step_number)] = [err[0][0],err[0][1]]
     # 接口：返回错误信息
 
     return check_info
@@ -183,11 +184,11 @@ def check_newtickets(Task:string,Step_number_list:list,Step_list:list,Place:stri
         checking_ticket.add_newticket(Task,Step_number_list[i],Step_list[i],Place,Unit)
         checking_tickets.append(checking_ticket)
 
-    check_info += DeviceMacth(checking_tickets)
+    #check_info += DeviceMacth(checking_tickets)
     check_info += NLP_check(checking_tickets)
-    check_info += RuleMacth(checking_tickets)
+    #check_info += RuleMacth(checking_tickets)
 
-    return check_info
+    return check_info,err_cor
 
 # 应用功能：NLP模型规则更新
 def add_new_confusion(err:string,cor:string) ->string: 
@@ -252,7 +253,6 @@ def show_device() ->list:
         return info
 
 if __name__ == '__main__':
-    
     # 操作票接口处
     # 例：
     error_sentences = [
@@ -264,7 +264,7 @@ if __name__ == '__main__':
         '确认Ⅰ母PT计量表计用A相电压1MCBa空气开关在分闸位置；',
         '确认Ⅰ母保护1用A相电压2MCBa空气开关在分闸位置；',
         '确认110kV#1电压互感器111PT 二次开口三角电压二次接线已临时解开，并用绝缘胶布保好；',
-        '确认上述一、二次设备在规定状态，启动范围内所有临时接地线均已拆除，接地刀闸均已拉开。'
+        '确认上述一、二次设备在规定状态，启动范围内所有临时接地线均已拆除，接地刀闸均已拉开。',
     ]
     #print(show_rules())
-    print(check_newtickets('220kV #1电压互感器111PT启动前操作',[1,2,3,4,5,6,7,8,9],error_sentences,'1','自调'))
+    print(check_newtickets('220kV #1电压互感器119PT启动前操作',[1,2,3,4,5,6,7,8,9],error_sentences,'1','自调'))
